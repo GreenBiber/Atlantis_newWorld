@@ -10,6 +10,6 @@ export default defineConfig({
   preview: {
     host: '0.0.0.0',
     port: 5173,
-    allowedHosts: ['all'],
+    allowedHosts: ['all', 'sd_frontend', '187.77.88.215'],
   }
 });
