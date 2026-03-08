@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { initDB } from './db/pool';
 import authRoutes from './routes/auth';
+import runsRoutes from './routes/runs';
 
 dotenv.config();
 
@@ -12,14 +13,13 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Routes
 app.use('/auth', authRoutes);
+app.use('/runs', runsRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', game: 'Schleier & Dunkel' });
 });
 
-// Start
 async function main() {
   await initDB();
   app.listen(PORT, () => {
