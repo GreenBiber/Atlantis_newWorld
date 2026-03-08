@@ -11,13 +11,3 @@
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }
-```
-
----
-
-**`backend/.env.example`:**
-```
-DATABASE_URL=postgresql://schleier:devpassword@localhost:5432/schleier_dev
-JWT_SECRET=change_me_in_production
-NODE_ENV=development
-PORT=3000
