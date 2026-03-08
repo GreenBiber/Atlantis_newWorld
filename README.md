@@ -1,3 +1,6 @@
+## Status
+Deploy-Pipeline aktiv ✅
+
 # Schleier & Dunkel
 Asymmetrisches Strategie-Roguelite - Held vs. Schleier-Armee
 
