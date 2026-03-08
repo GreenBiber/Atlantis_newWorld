@@ -6,10 +6,13 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
-  },
-  preview: {
-    host: '0.0.0.0',
-    port: 5173,
     allowedHosts: ['all', 'sd_frontend', '187.77.88.215'],
-  }
+    proxy: {
+      '/api': {
+        target: 'http://sd_backend:3000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+    },
+  },
 });
