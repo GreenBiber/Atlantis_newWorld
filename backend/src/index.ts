@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { initDB } from './db/pool';
 
 dotenv.config();
 
@@ -14,6 +15,12 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', game: 'Schleier & Dunkel' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server läuft auf Port ${PORT}`);
-});
+// Start
+async function main() {
+  await initDB();
+  app.listen(PORT, () => {
+    console.log(`🎮 Server läuft auf Port ${PORT}`);
+  });
+}
+
+main().catch(console.error);
