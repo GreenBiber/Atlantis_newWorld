@@ -104,6 +104,73 @@
 
 ---
 
+## Aktuelle Ordnerstruktur
+
+```
+Atlantis_2.0/
+├── .github/
+│   └── workflows/
+│       └── deploy.yml
+├── backend/
+│   ├── src/
+│   │   ├── db/
+│   │   │   ├── pool.ts
+│   │   │   └── schema.sql
+│   │   ├── game/
+│   │   │   ├── graph.ts
+│   │   │   ├── veil.ts
+│   │   │   ├── combat.ts
+│   │   │   └── events.ts
+│   │   ├── middleware/
+│   │   │   └── auth.ts
+│   │   ├── routes/
+│   │   │   ├── auth.ts
+│   │   │   └── runs.ts
+│   │   ├── utils/
+│   │   │   └── prng.ts
+│   │   └── index.ts
+│   ├── Dockerfile
+│   ├── package.json
+│   └── tsconfig.json
+├── frontend/
+│   ├── src/
+│   │   ├── App.tsx
+│   │   └── main.tsx
+│   ├── Dockerfile
+│   ├── index.html
+│   ├── package.json
+│   └── vite.config.ts
+├── docker-compose.yml
+├── docker-compose.prod.yml
+├── nginx.conf
+├── .gitignore
+└── README.md
+```
+
+### Geplante neue Dateien (Sprints 1–4)
+
+```
+backend/src/game/
+├── items.ts        ← Sprint 1
+├── runes.ts        ← Sprint 2
+├── curses.ts       ← Sprint 3
+└── leaders.ts      ← Sprint 3
+
+backend/src/routes/
+└── inventory.ts    ← Sprint 1
+
+frontend/src/
+├── components/
+│   ├── InventoryPanel.tsx   ← Sprint 1
+│   ├── RuneUI.tsx           ← Sprint 2
+│   ├── CursePanel.tsx       ← Sprint 3
+│   └── LeaderPanel.tsx      ← Sprint 3
+└── screens/
+    └── RegionSelect.tsx     ← Sprint 4
+```
+
+---
+
 ## Infrastruktur-Referenz
 
 | Komponente | Detail |

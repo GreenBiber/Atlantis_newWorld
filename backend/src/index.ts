@@ -1,9 +1,11 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { initDB } from './db/pool';
+import { pool, initDB } from './db/pool';
 import authRoutes from './routes/auth';
 import runsRoutes from './routes/runs';
+import { createInventoryRouter } from './routes/inventory';
+import { authMiddleware } from './middleware/auth';
 
 dotenv.config();
 
@@ -15,6 +17,7 @@ app.use(express.json());
 
 app.use('/auth', authRoutes);
 app.use('/runs', runsRoutes);
+app.use('/runs', createInventoryRouter(pool, authMiddleware));
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', game: 'Schleier & Dunkel' });
