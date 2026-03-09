@@ -5,10 +5,10 @@
 
 import { Router, Request, Response } from 'express';
 import { Pool } from 'pg';
-import { rollLoot, ALL_ITEMS, Item } from './items';
-import { rollRuneDrop, detectRuneWord, computeSocketedEffect, veilRuneAction } from './runes';
-import { applyCurse, removeCurse, tickCurses, computeCurseEffect, CURSES, clearRegionScopedCurses } from './curses';
-import { recruitLeader, checkDepartureConditions, computeLeaderPassiveBonuses, LEADERS } from './leaders';
+import { rollLoot, ALL_ITEMS, Item } from '../game/items';
+import { rollRuneDrop, detectRuneWord, computeSocketedEffect, veilRuneAction } from '../game/runes';
+import { applyCurse, removeCurse, tickCurses, computeCurseEffect, CURSES, clearRegionScopedCurses } from '../game/curses';
+import { recruitLeader, checkDepartureConditions, computeLeaderPassiveBonuses, LEADERS } from '../game/leaders';
 
 export function createInventoryRouter(db: Pool, authMiddleware: any): Router {
   const router = Router();

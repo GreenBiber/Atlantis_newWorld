@@ -69,8 +69,7 @@ export const WEAPONS: Item[] = [
     runeSlots: 1,
     description: '+4 Schaden, Gegner: -10% Heilung',
     lore: 'Das Metall wurde in Moorwasser gehärtet. Wunden, die sie schlägt, verheilen schlecht.',
-    effects: { damage: 4 },
-    onKill: 'SUMPFGIFT',
+    effects: { damage: 4, onKill: 'SUMPFGIFT' },
     regionBias: ['nebelmoor'],
   },
   {
@@ -93,8 +92,7 @@ export const WEAPONS: Item[] = [
     runeSlots: 2,
     description: '+8 Schaden, Sichtbarkeit -1 nach Kampfsieg',
     lore: 'Geschmiedet von Meuchelmördern. Sie sagen, die Klinge trinkt Licht.',
-    effects: { damage: 8 },
-    onKill: 'SCHATTEN_STILLE',
+    effects: { damage: 8, onKill: 'SCHATTEN_STILLE' },
   },
   {
     id: 'W05',
@@ -142,8 +140,7 @@ export const WEAPONS: Item[] = [
     runeSlots: 3,
     description: '+15 Schaden, Verderbnis +1 bei Ausrüstung, +25% Schaden gegen Schleier-Einheiten',
     lore: 'Aus dem Körper eines gefallenen Bösewicht-Helden geborgen. Sie flüstert noch.',
-    effects: { damage: 15, corruption: 1, armyStrengthMult: 1.25 },
-    onKill: 'SCHLEIER_ECHO',
+    effects: { damage: 15, corruption: 1, armyStrengthMult: 1.25, onKill: 'SCHLEIER_ECHO' },
   },
 ];
 
@@ -251,8 +248,7 @@ export const ARTIFACTS: Item[] = [
     runeSlots: 0,
     description: 'Sichtbarkeit steigt nicht durch Magie-Aktionen (1 Run)',
     lore: 'Geprägt von einem Orden, der nicht existiert. Oder der es nicht mehr tut.',
-    effects: {},
-    onCurseApplied: 'SILENCE_SHIELD',
+    effects: { onCurseApplied: 'SILENCE_SHIELD' },
   },
   {
     id: 'ART03',
