@@ -3,49 +3,42 @@
 // 10 Flüche + 6 Kombinations-Effekte
 // ═══════════════════════════════════════════════════════════════════
 
-export type CurseTrigger =
-  | 'on_combat_start'
-  | 'on_room_enter'
-  | 'on_attack'
-  | 'on_heal'
-  | 'on_escape'
-  | 'on_loot'
-  | 'on_skill_use'
-  | 'passive';
+export type CurseSide = 'hero' | 'veil';
+export type CurseScope = 'run' | 'region'; // region = endet nach aktuellem Gebiet
 
 export interface CurseEffect {
-  hpPerRound?: number;          // Schaden pro Runde (negativ)
-  maxHpMult?: number;           // Reduktion Max-HP (z.B. 0.8 = -20%)
-  damageMult?: number;          // Schaden-Multiplikator (z.B. 0.8 = -20%)
-  armorMult?: number;           // Rüstungs-Multiplikator
-  armyStrengthMult?: number;
-  escapeChanceMult?: number;    // Flucht-Chance modifizieren
-  visibilityPerRoom?: number;   // +X Sichtbarkeit pro Raum
-  corruptionPerRoom?: number;
-  skillCostIncrease?: number;   // Skill kostet mehr
-  healingMult?: number;         // Heilung reduziert
-  goldMult?: number;            // Gold-Einnahmen reduziert
-  movementCost?: number;        // Extra Kosten pro Bewegungsschritt
-  lootChanceMult?: number;
-  // Spezielle Trigger
-  onCombatStart?: string;       // Effekt-ID
-  onRoomEnter?: string;
-  onHeal?: string;
+  damageReduction?: number;      // % weniger Schaden verursachen
+  damageIncrease?: number;       // % mehr Schaden erleiden
+  healingReduction?: number;     // % weniger Heilung erhalten
+  visibilityPerRoom?: number;    // Sichtbarkeit +X pro Raum
+  corruptionPerRoom?: number;    // Verderbnis +X pro Raum
+  threatPerRoom?: number;        // Bedrohung +X pro Raum
+  maxHpReduction?: number;       // Max-HP reduzieren
+  escapeChancePenalty?: number;  // Flucht-Chance -X%
+  skillCheckPenalty?: number;    // Skillcheck -X%
+  armyStrengthMult?: number;     // Armeestärke Multiplikator
+  goldLossPerRoom?: number;      // Gold-Verlust pro Raum
+  special?: string;              // Spezial-Effekt-ID
 }
 
 export interface Curse {
   id: string;
   name: string;
-  icon: string;
   description: string;
-  lore: string;
-  trigger: CurseTrigger;
   effect: CurseEffect;
-  duration: number | 'permanent' | 'run';  // Räume oder 'permanent' / 'run'
-  severity: 1 | 2 | 3;         // 1=leicht, 2=mittel, 3=schwer
-  cureOptions: string[];        // Was kann heilen ('merchant', 'mentor', 'cleanser', 'rest')
-  corruptionGain: number;       // Wie viel Verderbnis beim Anwenden
-  source: string[];             // Woher kommt der Fluch ('event', 'veil_action', 'item', 'combat')
+  scope: CurseScope;
+  removalCost?: number;           // Gold zum Entfernen beim Händler
+  removalMethod: string[];        // 'merchant' | 'cleanser_item' | 'mentor_room'
+  lore: string;
+}
+
+export interface CurseCombo {
+  id: string;
+  name: string;
+  requiredCurseIds: string[];     // Beide müssen aktiv sein
+  description: string;
+  bonusEffect: CurseEffect;
+  lore: string;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -53,331 +46,228 @@ export interface Curse {
 // ═══════════════════════════════════════════════════════════════════
 export const CURSES: Curse[] = [
   {
-    id: 'CRS_MOORFIEBER',
+    id: 'CU01',
     name: 'Moorfieber',
-    icon: '🤒',
-    description: 'Heilung -25%, Max-HP -10 für Fluch-Dauer',
-    lore: 'Das Moor gibt nichts zurück, was es einmal berührt hat.',
-    trigger: 'passive',
-    effect: { healingMult: 0.75, maxHpMult: 0.9 },
-    duration: 4,
-    severity: 2,
-    cureOptions: ['merchant', 'cleanser'],
-    corruptionGain: 0,
-    source: ['event', 'combat'],
+    description: 'Heilung -25%, Max-HP -10',
+    scope: 'region',
+    removalCost: 30,
+    removalMethod: ['merchant', 'cleanser_item'],
+    lore: 'Das Moor lässt sich nicht einfach verlassen. Es bleibt in den Knochen.',
+    effect: { healingReduction: 25, maxHpReduction: 10 },
   },
   {
-    id: 'CRS_SCHLEIERMARK',
-    name: 'Schleier-Mark',
-    icon: '👁',
-    description: '+1 Sichtbarkeit pro Raum, Schleier-KI priorisiert dich',
-    lore: 'Er hat dich gesehen. Jetzt weiß er, wo du bist.',
-    trigger: 'on_room_enter',
-    effect: { visibilityPerRoom: 1 },
-    duration: 3,
-    severity: 2,
-    cureOptions: ['mentor', 'cleanser'],
-    corruptionGain: 0,
-    source: ['veil_action', 'event'],
+    id: 'CU02',
+    name: 'Schleierfluch',
+    description: 'Bedrohung +1 pro Raum, Sichtbarkeit +1 pro Kampf',
+    scope: 'run',
+    removalCost: 50,
+    removalMethod: ['merchant', 'mentor_room'],
+    lore: 'Der Schleier hat seine Markierung hinterlassen. Jetzt wissen alle, wo du bist.',
+    effect: { threatPerRoom: 1, visibilityPerRoom: 1 },
   },
   {
-    id: 'CRS_VERDERBNIS_WUCHERUNG',
-    name: 'Verderbnis-Wucherung',
-    icon: '☠',
-    description: '+1 Verderbnis pro Raum, Schaden -10%',
-    lore: 'Die Dunkelheit wächst von innen.',
-    trigger: 'on_room_enter',
-    effect: { corruptionPerRoom: 1, damageMult: 0.9 },
-    duration: 5,
-    severity: 3,
-    cureOptions: ['cleanser', 'merchant'],
-    corruptionGain: 2,
-    source: ['event', 'item', 'combat'],
+    id: 'CU03',
+    name: 'Verderbte Klinge',
+    description: 'Armeeschaden -15%, Verderbnis +1 pro 3 Räume',
+    scope: 'run',
+    removalCost: 40,
+    removalMethod: ['merchant', 'cleanser_item'],
+    lore: 'Die Waffe hat zu viel Böses berührt. Das Böse berührt jetzt zurück.',
+    effect: { armyStrengthMult: 0.85, corruptionPerRoom: 0.33 },
   },
   {
-    id: 'CRS_BLUTSCHULD',
-    name: 'Blutschuld',
-    icon: '🩸',
-    description: '-5 HP pro Runde im Kampf, Gold-Einnahmen -30%',
-    lore: 'Die Schuld fordert ihren Preis. In Blut oder Gold.',
-    trigger: 'on_combat_start',
-    effect: { hpPerRound: -5, goldMult: 0.7 },
-    duration: 3,
-    severity: 2,
-    cureOptions: ['merchant', 'rest'],
-    corruptionGain: 1,
-    source: ['event', 'veil_action'],
+    id: 'CU04',
+    name: 'Bleigewicht',
+    description: 'Flucht-Chance -20%, Bewegung kostet +1 Sichtbarkeit',
+    scope: 'region',
+    removalCost: 35,
+    removalMethod: ['merchant', 'cleanser_item'],
+    lore: 'Als würde jemand an deinen Fersen hängen. Jemand tut es.',
+    effect: { escapeChancePenalty: 20, visibilityPerRoom: 1 },
   },
   {
-    id: 'CRS_ZITTERNDE_HAND',
-    name: 'Zitternde Hand',
-    icon: '🫳',
-    description: 'Schaden -20%, Krit-Chance -5%',
-    lore: 'Der Fluch greift nach deiner Hand, bevor du es selbst tust.',
-    trigger: 'passive',
-    effect: { damageMult: 0.8 },
-    duration: 3,
-    severity: 1,
-    cureOptions: ['mentor', 'rest', 'cleanser'],
-    corruptionGain: 0,
-    source: ['event', 'combat'],
+    id: 'CU05',
+    name: 'Goldgier',
+    description: 'Gold-Verlust 5G pro Raum, Skillchecks -15%',
+    scope: 'run',
+    removalCost: 25,
+    removalMethod: ['cleanser_item'],
+    lore: 'Das Geld fließt durch die Finger wie Wasser. Jemand sammelt es ein.',
+    effect: { goldLossPerRoom: 5, skillCheckPenalty: 15 },
   },
   {
-    id: 'CRS_LÄHMENDER_SCHLEIER',
-    name: 'Lähmender Schleier',
-    icon: '🕸',
-    description: 'Flucht-Chance -30%, erste Kampfrunde: Armee -10% Stärke',
-    lore: 'Unsichtbare Fäden. Du merkst sie erst, wenn du fliehen willst.',
-    trigger: 'on_combat_start',
-    effect: { escapeChanceMult: 0.7, armyStrengthMult: 0.9 },
-    duration: 4,
-    severity: 2,
-    cureOptions: ['cleanser', 'mentor'],
-    corruptionGain: 1,
-    source: ['veil_action', 'event'],
+    id: 'CU06',
+    name: 'Gebrochener Wille',
+    description: 'Armeestärke -20% in Kämpfen, Anführer -1 Moral',
+    scope: 'run',
+    removalCost: 60,
+    removalMethod: ['merchant', 'mentor_room'],
+    lore: 'Der Geist der Armee ist gebrochen. Nicht durch Niederlage — durch Flüstern.',
+    effect: { armyStrengthMult: 0.80, special: 'WILLBREAK_LEADER' },
   },
   {
-    id: 'CRS_GEISTERRUF',
-    name: 'Geisterruf',
-    icon: '👻',
-    description: 'Sichtbarkeit +2 beim Betreten jedes roten Raums',
-    lore: 'Die Geister singen deinen Namen. Laut.',
-    trigger: 'on_room_enter',
-    effect: { visibilityPerRoom: 0 }, // Nur rote Räume: Logik im Room-Enter-Handler
-    duration: 'run',
-    severity: 2,
-    cureOptions: ['cleanser'],
-    corruptionGain: 1,
-    source: ['event', 'item'],
+    id: 'CU07',
+    name: 'Schattenspur',
+    description: 'Schleier kennt immer deinen aktuellen Knoten',
+    scope: 'run',
+    removalCost: 70,
+    removalMethod: ['mentor_room'],
+    lore: 'Du hinterlässt eine Spur die kein Auge sieht — aber der Schleier spürt sie.',
+    effect: { special: 'SHADOW_TRAIL' },
   },
   {
-    id: 'CRS_BETTLERS_LAST',
-    name: 'Bettlers Last',
-    icon: '💸',
-    description: 'Loot-Chance -40%, Händler-Preise +50%',
-    lore: 'Wer unter diesem Fluch leidet, findet immer das Schlechteste.',
-    trigger: 'on_loot',
-    effect: { lootChanceMult: 0.6, goldMult: 0.5 },
-    duration: 3,
-    severity: 1,
-    cureOptions: ['merchant', 'rest'],
-    corruptionGain: 0,
-    source: ['event', 'item'],
+    id: 'CU08',
+    name: 'Blutendes Herz',
+    description: '-5 HP pro Raum ohne Heilung',
+    scope: 'region',
+    removalCost: 40,
+    removalMethod: ['cleanser_item', 'merchant'],
+    lore: 'Eine alte Wunde die nicht heilen will. Sie erinnert dich an jeden Schritt.',
+    effect: { special: 'BLEEDING_TICK' },
   },
   {
-    id: 'CRS_FLEISCHHUNGER',
-    name: 'Fleischhunger',
-    icon: '🦷',
-    description: 'Pro Raum ohne Kampf: -3 HP. Pro Kampfsieg: +5 HP.',
-    lore: 'Er hat Hunger bekommen. Er hört nicht mehr auf damit.',
-    trigger: 'on_room_enter',
-    effect: { hpPerRound: -3 }, // onVictory: HP_5
-    duration: 'run',
-    severity: 3,
-    cureOptions: ['cleanser'],
-    corruptionGain: 2,
-    source: ['event', 'veil_action'],
+    id: 'CU09',
+    name: 'Verwirrte Runen',
+    description: 'Alle gesockelten Runen-Effekte halbiert',
+    scope: 'run',
+    removalCost: 55,
+    removalMethod: ['merchant', 'mentor_room'],
+    lore: 'Die Runen sprechen noch — aber in der falschen Sprache.',
+    effect: { special: 'RUNE_CONFUSION' },
   },
   {
-    id: 'CRS_EISIGE_SEELE',
-    name: 'Eisige Seele',
-    icon: '🧊',
-    description: 'Armee-Rekrutierung -50%, keine Anführer in dieser Gebiet-Phase',
-    lore: 'Kein Krieger folgt einem, dessen Herz aufgehört hat zu schlagen.',
-    trigger: 'passive',
-    effect: { armyStrengthMult: 0.85 }, // recruitmentMult: 0.5, noLeaders: true
-    duration: 'run', // Endet nach Gebiet-Abschluss (region-scoped)
-    severity: 3,
-    cureOptions: ['cleanser', 'mentor'],
-    corruptionGain: 1,
-    source: ['veil_action', 'event'],
+    id: 'CU10',
+    name: 'Doppelgänger',
+    description: 'Schleier-KI erhält 1 Schritt Vorschau auf deine Route',
+    scope: 'region',
+    removalCost: 80,
+    removalMethod: ['mentor_room'],
+    lore: 'Jemand bewegt sich genau wie du. Nur einen Schritt vor dir.',
+    effect: { special: 'DOPPELGAENGER_PREVIEW' },
   },
 ];
 
 // ═══════════════════════════════════════════════════════════════════
-// 6 KOMBINATIONS-EFFEKTE (zwei aktive Flüche = Synergie)
+// 6 KOMBINATIONS-EFFEKTE
 // ═══════════════════════════════════════════════════════════════════
-export interface CurseSynergy {
-  id: string;
-  name: string;
-  icon: string;
-  curses: [string, string];    // Zwei Fluch-IDs die sich kombinieren
-  description: string;
-  lore: string;
-  additionalEffect: CurseEffect;
-  severity: 1 | 2 | 3;
-}
-
-export const CURSE_SYNERGIES: CurseSynergy[] = [
+export const CURSE_COMBOS: CurseCombo[] = [
   {
-    id: 'SYN_VERDORBENER_SOLDAT',
-    name: 'Verdorbener Soldat',
-    icon: '💀',
-    curses: ['CRS_VERDERBNIS_WUCHERUNG', 'CRS_ZITTERNDE_HAND'],
-    description: 'Armeestärke -20% zusätzlich, jede Runde im Kampf: Verderbnis +1',
-    lore: 'Wenn die Dunkelheit die Hand hält und der Geist folgt — was bleibt übrig?',
-    additionalEffect: { armyStrengthMult: 0.8, corruptionPerRoom: 1 },
-    severity: 3,
+    id: 'CC01',
+    name: 'Verfluchter Krieger',
+    requiredCurseIds: ['CU03', 'CU06'],
+    description: 'Armeestärke -30% gesamt, aber Held: +10 Schaden (Verzweiflung)',
+    bonusEffect: { armyStrengthMult: 0.70, special: 'CURSED_WARRIOR_DESPAIR' },
+    lore: 'Wenn die Armee fällt, kämpft der Held allein — mit allem was er hat.',
   },
   {
-    id: 'SYN_GEJAGTER_GEIST',
-    name: 'Gejagter Geist',
-    icon: '🌑',
-    curses: ['CRS_SCHLEIERMARK', 'CRS_GEISTERRUF'],
-    description: 'Schleier-KI bewegt sich immer auf dich zu, +2 Sichtbarkeit pro Raum',
-    lore: 'Die Mark und die Geister zusammen — du bist ein Leuchtturm im Dunkel.',
-    additionalEffect: { visibilityPerRoom: 2 },
-    severity: 3,
+    id: 'CC02',
+    name: 'Unsichtbares Grab',
+    requiredCurseIds: ['CU07', 'CU04'],
+    description: 'Schleier weiß deinen Knoten UND Flucht -30% — gefangen',
+    bonusEffect: { escapeChancePenalty: 30, special: 'UNSICHTBARES_GRAB' },
+    lore: 'Du kannst nicht fliehen. Du kannst nicht verstecken. Du kannst nur kämpfen.',
   },
   {
-    id: 'SYN_BLUTIGER_HUNGER',
-    name: 'Blutiger Hunger',
-    icon: '🩸',
-    curses: ['CRS_BLUTSCHULD', 'CRS_FLEISCHHUNGER'],
-    description: '-8 HP pro Runde im Kampf, aber Kampfsieg gibt +15 HP und +10 Gold',
-    lore: 'Zahle mit Blut. Ernte mit Blut. Ein grausamer Kreislauf.',
-    additionalEffect: { hpPerRound: -3 }, // onVictory: HP_15_GOLD_10
-    severity: 2,
+    id: 'CC03',
+    name: 'Verderbte Seele',
+    requiredCurseIds: ['CU02', 'CU03'],
+    description: 'Verderbnis steigt doppelt schnell, Schleier-Stufe +1 sofort',
+    bonusEffect: { corruptionPerRoom: 1, special: 'VERDERBTE_SEELE_ESCALATE' },
+    lore: 'Der Schleier ist nicht nur um dich — er ist in dir.',
   },
   {
-    id: 'SYN_VERLORENER_BETTLER',
-    name: 'Verlorener Bettler',
-    icon: '💸',
-    curses: ['CRS_BETTLERS_LAST', 'CRS_BLUTSCHULD'],
-    description: 'Gold-Einnahmen -60%, kein Loot aus grünen Räumen',
-    lore: 'Arm. Krank. Verflucht. Die vollständige Triade.',
-    additionalEffect: { goldMult: 0.4, lootChanceMult: 0 },
-    severity: 1,
+    id: 'CC04',
+    name: 'Goldener Käfig',
+    requiredCurseIds: ['CU05', 'CU08'],
+    description: 'Gold-Verlust +5G pro Raum, HP-Verlust +5 pro Raum — stirb arm',
+    bonusEffect: { goldLossPerRoom: 5, special: 'GOLDEN_CAGE_TICK' },
+    lore: 'Reichtum und Leben fließen gleichzeitig ab. Du weißt nicht welcher schneller geht.',
   },
   {
-    id: 'SYN_GEFESSELTE_ARMEE',
-    name: 'Gefesselte Armee',
-    icon: '⛓',
-    curses: ['CRS_LÄHMENDER_SCHLEIER', 'CRS_EISIGE_SEELE'],
-    description: 'Keine Flucht möglich, Armee-Rekrutierung vollständig gesperrt',
-    lore: 'Du kämpfst allein. Du kannst nicht entkommen. Gut.',
-    additionalEffect: { escapeChanceMult: 0, armyStrengthMult: 0.7 },
-    severity: 3,
+    id: 'CC05',
+    name: 'Runenzerstörer',
+    requiredCurseIds: ['CU09', 'CU02'],
+    description: 'Runen-Effekte deaktiviert UND Schleier stiehlt Runen häufiger (+20%)',
+    bonusEffect: { special: 'RUNE_DESTROYER_FULL' },
+    lore: 'Die Runen schweigen. Der Schleier hört sie trotzdem.',
   },
   {
-    id: 'SYN_FIEBERNDER_SCHATTEN',
-    name: 'Fiebernder Schatten',
-    icon: '🌡',
-    curses: ['CRS_MOORFIEBER', 'CRS_SCHLEIERMARK'],
-    description: 'Kein Heilung in gelben und roten Räumen, Sichtbarkeit +1 pro Heilversuch',
-    lore: 'Das Fieber macht dich sichtbar. Deine Schwäche ist dein Verräter.',
-    additionalEffect: { healingMult: 0 }, // healBlocked: ['yellow', 'red']
-    severity: 3,
+    id: 'CC06',
+    name: 'Totaler Verrat',
+    requiredCurseIds: ['CU07', 'CU10'],
+    description: 'Schleier kennt Route UND sieht 1 Schritt voraus — perfekte Jagd',
+    bonusEffect: { special: 'TOTALER_VERRAT_HUNT' },
+    lore: 'Es gibt keinen Plan mehr. Nur noch den Weg nach vorn.',
   },
 ];
 
 // ═══════════════════════════════════════════════════════════════════
-// AKTIVER FLUCH-STATE (im Run)
+// FLUCH ANWENDEN
 // ═══════════════════════════════════════════════════════════════════
-export interface ActiveCurse {
-  curseId: string;
-  remainingDuration: number | 'permanent' | 'run';
-  appliedAtStep: number;
-  source: string;
-}
-
-export interface CurseState {
-  activeCurses: ActiveCurse[];
-  activeSynergies: string[];    // Synergie-IDs die gerade aktiv sind
-}
-
-export function getActiveSynergies(activeCurseIds: string[]): CurseSynergy[] {
-  return CURSE_SYNERGIES.filter(syn =>
-    syn.curses.every(cId => activeCurseIds.includes(cId))
-  );
-}
-
 export function applyCurse(
-  state: CurseState,
-  curseId: string,
-  currentStep: number,
-  source: string
-): CurseState {
-  const curse = CURSES.find(c => c.id === curseId);
-  if (!curse) return state;
+  activeCurseIds: string[],
+  newCurseId: string
+): { updatedCurses: string[]; comboActivated: CurseCombo | null } {
+  if (activeCurseIds.includes(newCurseId)) {
+    return { updatedCurses: activeCurseIds, comboActivated: null };
+  }
+  const updated = [...activeCurseIds, newCurseId];
 
-  // Nicht doppelt anwenden (außer stackable curses — keine in v3.1)
-  if (state.activeCurses.find(ac => ac.curseId === curseId)) return state;
+  // Kombinations-Effekte prüfen
+  const combo = CURSE_COMBOS.find(c =>
+    c.requiredCurseIds.every(id => updated.includes(id))
+  ) || null;
 
-  const newCurse: ActiveCurse = {
-    curseId,
-    remainingDuration: curse.duration,
-    appliedAtStep: currentStep,
-    source,
-  };
-
-  const newActiveCurses = [...state.activeCurses, newCurse];
-  const newActiveSynergies = getActiveSynergies(newActiveCurses.map(ac => ac.curseId))
-    .map(syn => syn.id);
-
-  return { activeCurses: newActiveCurses, activeSynergies: newActiveSynergies };
+  return { updatedCurses: updated, comboActivated: combo };
 }
 
-export function tickCurses(state: CurseState): CurseState {
-  const remaining = state.activeCurses.filter(ac => {
-    if (ac.remainingDuration === 'permanent' || ac.remainingDuration === 'run') return true;
-    return (ac.remainingDuration as number) > 1;
-  }).map(ac => {
-    if (typeof ac.remainingDuration === 'number') {
-      return { ...ac, remainingDuration: ac.remainingDuration - 1 };
-    }
-    return ac;
+export function removeCurse(activeCurseIds: string[], curseId: string): string[] {
+  return activeCurseIds.filter(id => id !== curseId);
+}
+
+export function clearRegionScopedCurses(activeCurseIds: string[]): string[] {
+  return activeCurseIds.filter(id => {
+    const curse = CURSES.find(c => c.id === id);
+    return curse?.scope === 'run'; // Nur Run-Flüche bleiben
   });
-
-  const newActiveSynergies = getActiveSynergies(remaining.map(ac => ac.curseId))
-    .map(syn => syn.id);
-
-  return { activeCurses: remaining, activeSynergies: newActiveSynergies };
 }
 
-export function removeCurse(state: CurseState, curseId: string): CurseState {
-  const remaining = state.activeCurses.filter(ac => ac.curseId !== curseId);
-  const newActiveSynergies = getActiveSynergies(remaining.map(ac => ac.curseId))
-    .map(syn => syn.id);
-  return { activeCurses: remaining, activeSynergies: newActiveSynergies };
+export function tickCurses(
+  activeCurseIds: string[],
+  heroState: { hp: number; maxHp: number; visibility: number; threat: number; corruption: number; gold: number }
+): typeof heroState {
+  const state = { ...heroState };
+  for (const id of activeCurseIds) {
+    const curse = CURSES.find(c => c.id === id);
+    if (!curse) continue;
+    if (curse.effect.visibilityPerRoom) state.visibility = Math.min(10, state.visibility + curse.effect.visibilityPerRoom);
+    if (curse.effect.corruptionPerRoom) state.corruption = Math.min(10, state.corruption + curse.effect.corruptionPerRoom);
+    if (curse.effect.threatPerRoom) state.threat = Math.min(10, state.threat + curse.effect.threatPerRoom);
+    if (curse.effect.goldLossPerRoom) state.gold = Math.max(0, state.gold - curse.effect.goldLossPerRoom);
+  }
+  return state;
 }
 
-export function clearRegionScopedCurses(state: CurseState): CurseState {
-  const remaining = state.activeCurses.filter(ac => ac.remainingDuration !== 'run');
-  const newActiveSynergies = getActiveSynergies(remaining.map(ac => ac.curseId))
-    .map(syn => syn.id);
-  return { activeCurses: remaining, activeSynergies: newActiveSynergies };
-}
-
-/**
- * Berechnet den kombinierten Fluch-Effekt aller aktiven Flüche + Synergien.
- */
-export function computeCurseEffect(state: CurseState): CurseEffect {
+export function computeCurseEffect(activeCurseIds: string[]): CurseEffect {
   const combined: CurseEffect = {};
-
-  const allEffects: CurseEffect[] = [
-    ...state.activeCurses.map(ac => {
-      const curse = CURSES.find(c => c.id === ac.curseId);
-      return curse?.effect || {};
-    }),
-    ...state.activeSynergies.map(synId => {
-      const syn = CURSE_SYNERGIES.find(s => s.id === synId);
-      return syn?.additionalEffect || {};
-    }),
-  ];
-
-  for (const effect of allEffects) {
-    for (const [key, val] of Object.entries(effect)) {
-      const k = key as keyof CurseEffect;
-      if (typeof val === 'number') {
-        const isMultiplier = k.endsWith('Mult');
-        if (isMultiplier) {
-          (combined[k] as number) = ((combined[k] as number) ?? 1.0) * val;
-        } else {
-          (combined[k] as number) = ((combined[k] as number) ?? 0) + val;
-        }
-      }
-    }
+  for (const id of activeCurseIds) {
+    const curse = CURSES.find(c => c.id === id);
+    if (!curse) continue;
+    if (curse.effect.damageReduction) combined.damageReduction = (combined.damageReduction || 0) + curse.effect.damageReduction;
+    if (curse.effect.healingReduction) combined.healingReduction = (combined.healingReduction || 0) + curse.effect.healingReduction;
+    if (curse.effect.escapeChancePenalty) combined.escapeChancePenalty = (combined.escapeChancePenalty || 0) + curse.effect.escapeChancePenalty;
+    if (curse.effect.skillCheckPenalty) combined.skillCheckPenalty = (combined.skillCheckPenalty || 0) + curse.effect.skillCheckPenalty;
+    if (curse.effect.armyStrengthMult) combined.armyStrengthMult = (combined.armyStrengthMult || 1.0) * curse.effect.armyStrengthMult;
+    if (curse.effect.maxHpReduction) combined.maxHpReduction = (combined.maxHpReduction || 0) + curse.effect.maxHpReduction;
+  }
+  // Kombinations-Effekte
+  const activeCombo = CURSE_COMBOS.find(c =>
+    c.requiredCurseIds.every(id => activeCurseIds.includes(id))
+  );
+  if (activeCombo) {
+    if (activeCombo.bonusEffect.escapeChancePenalty) combined.escapeChancePenalty = (combined.escapeChancePenalty || 0) + activeCombo.bonusEffect.escapeChancePenalty;
+    if (activeCombo.bonusEffect.armyStrengthMult) combined.armyStrengthMult = (combined.armyStrengthMult || 1.0) * activeCombo.bonusEffect.armyStrengthMult;
+    if (activeCombo.bonusEffect.special) combined.special = activeCombo.bonusEffect.special;
   }
   return combined;
 }

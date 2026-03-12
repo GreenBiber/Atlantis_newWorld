@@ -139,3 +139,65 @@ CREATE INDEX IF NOT EXISTS idx_army_units_run_id   ON army_units(run_id);
 CREATE INDEX IF NOT EXISTS idx_map_nodes_run_id    ON map_nodes(run_id);
 CREATE INDEX IF NOT EXISTS idx_map_edges_run_id    ON map_edges(run_id);
 CREATE INDEX IF NOT EXISTS idx_event_log_run_id    ON event_log(run_id);
+
+-- ═══════════════════════════════════════════════════════════════════
+-- SCHEMA ERGÄNZUNG v3.1 — Items, Runen, Flüche, Anführer
+-- Anhängen an bestehende schema.sql
+-- ═══════════════════════════════════════════════════════════════════
+ 
+-- Inventar
+CREATE TABLE IF NOT EXISTS inventory (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  run_id UUID NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+  item_id TEXT NOT NULL,
+  slot TEXT NOT NULL CHECK (slot IN ('weapon','armor','artifact','bag')),
+  equipped BOOLEAN NOT NULL DEFAULT FALSE,
+  rune_slots TEXT[] DEFAULT '{}',
+  active_rune_word TEXT,
+  acquired_at_step INT NOT NULL DEFAULT 0,
+  acquired_from TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_inventory_run ON inventory(run_id);
+ 
+-- Runen-Inventar
+CREATE TABLE IF NOT EXISTS rune_inventory (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  run_id UUID NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+  rune_id TEXT NOT NULL,
+  side TEXT NOT NULL CHECK (side IN ('hero','veil')),
+  socketed_into UUID REFERENCES inventory(id) ON DELETE SET NULL,
+  slot_position INT,
+  acquired_at_step INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_rune_inventory_run ON rune_inventory(run_id);
+ 
+-- Aktive Flüche
+CREATE TABLE IF NOT EXISTS active_curses (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  run_id UUID NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+  curse_id TEXT NOT NULL,
+  side TEXT NOT NULL CHECK (side IN ('hero','veil')),
+  scope TEXT NOT NULL CHECK (scope IN ('run','region')),
+  applied_at_step INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(run_id, curse_id, side)
+);
+CREATE INDEX IF NOT EXISTS idx_active_curses_run ON active_curses(run_id);
+ 
+-- Aktive Anführer
+CREATE TABLE IF NOT EXISTS active_leaders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  run_id UUID NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+  leader_id TEXT NOT NULL,
+  side TEXT NOT NULL CHECK (side IN ('hero','veil')),
+  current_hp INT NOT NULL,
+  max_hp INT NOT NULL,
+  is_alive BOOLEAN NOT NULL DEFAULT TRUE,
+  recruited_at_step INT NOT NULL DEFAULT 0,
+  departed_at_step INT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(run_id, leader_id, side)
+);
+CREATE INDEX IF NOT EXISTS idx_active_leaders_run ON active_leaders(run_id);

@@ -1,6 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
 // SCHLEIER & DUNKEL — Inventory & Progression API (SRS v3.1)
-// Express Router — einbinden in bestehende runs.ts oder als eigene Route
 // ═══════════════════════════════════════════════════════════════════
 
 import { Router, Request, Response } from 'express';
@@ -9,6 +8,7 @@ import { rollLoot, ALL_ITEMS, Item } from '../game/items';
 import { rollRuneDrop, detectRuneWord, computeSocketedEffect, veilRuneAction } from '../game/runes';
 import { applyCurse, removeCurse, tickCurses, computeCurseEffect, CURSES, clearRegionScopedCurses } from '../game/curses';
 import { recruitLeader, checkDepartureConditions, computeLeaderPassiveBonuses, LEADERS } from '../game/leaders';
+import { mulberry32 } from '../utils/prng';
 
 export function createInventoryRouter(db: Pool, authMiddleware: any): Router {
   const router = Router();
@@ -20,7 +20,6 @@ export function createInventoryRouter(db: Pool, authMiddleware: any): Router {
     const userId = (req as any).user.id;
 
     try {
-      // Auth check
       const runCheck = await db.query('SELECT id FROM runs WHERE id=$1 AND user_id=$2', [runId, userId]);
       if (!runCheck.rows.length) return res.status(404).json({ error: 'Run nicht gefunden.' });
 
@@ -44,7 +43,6 @@ export function createInventoryRouter(db: Pool, authMiddleware: any): Router {
   });
 
   // ── POST /runs/:id/inventory/equip ────────────────────────────────
-  // Body: { inventoryId: UUID, slot: 'weapon'|'armor'|'artifact' }
   router.post('/:id/inventory/equip', async (req: Request, res: Response) => {
     const { id: runId } = req.params;
     const { inventoryId, slot } = req.body;
@@ -58,7 +56,6 @@ export function createInventoryRouter(db: Pool, authMiddleware: any): Router {
       try {
         await client.query('BEGIN');
 
-        // Prüfe ob Item zu diesem Run gehört
         const itemCheck = await client.query(
           'SELECT * FROM inventory WHERE id=$1 AND run_id=$2',
           [inventoryId, runId]
@@ -70,15 +67,12 @@ export function createInventoryRouter(db: Pool, authMiddleware: any): Router {
 
         const item = itemCheck.rows[0];
 
-        // Slot-Validierung
         if (slot === 'weapon' || slot === 'armor') {
-          // Vorher ausgerüstetes Item ablegen
           await client.query(
             'UPDATE inventory SET equipped=FALSE WHERE run_id=$1 AND slot=$2 AND equipped=TRUE',
             [runId, slot]
           );
         } else if (slot === 'artifact') {
-          // Max 3 Artefakte
           const artifactCount = await client.query(
             'SELECT COUNT(*) FROM inventory WHERE run_id=$1 AND slot=$2 AND equipped=TRUE',
             [runId, 'artifact']
@@ -89,7 +83,6 @@ export function createInventoryRouter(db: Pool, authMiddleware: any): Router {
           }
         }
 
-        // Ausrüsten
         await client.query('UPDATE inventory SET equipped=TRUE, slot=$1 WHERE id=$2', [slot, inventoryId]);
 
         await client.query('COMMIT');
@@ -110,7 +103,6 @@ export function createInventoryRouter(db: Pool, authMiddleware: any): Router {
   router.post('/:id/inventory/unequip', async (req: Request, res: Response) => {
     const { id: runId } = req.params;
     const { inventoryId } = req.body;
-    const userId = (req as any).user.id;
 
     try {
       const result = await db.query(
@@ -125,18 +117,15 @@ export function createInventoryRouter(db: Pool, authMiddleware: any): Router {
   });
 
   // ── POST /runs/:id/runes/socket ───────────────────────────────────
-  // Body: { runeInventoryId: UUID, inventoryItemId: UUID, slotPosition: number }
   router.post('/:id/runes/socket', async (req: Request, res: Response) => {
     const { id: runId } = req.params;
     const { runeInventoryId, inventoryItemId, slotPosition } = req.body;
-    const userId = (req as any).user.id;
 
     try {
       const client = await db.connect();
       try {
         await client.query('BEGIN');
 
-        // Prüfe Item
         const itemCheck = await client.query(
           'SELECT * FROM inventory WHERE id=$1 AND run_id=$2',
           [inventoryItemId, runId]
@@ -144,14 +133,12 @@ export function createInventoryRouter(db: Pool, authMiddleware: any): Router {
         if (!itemCheck.rows.length) throw new Error('Item nicht gefunden.');
         const inventoryItem = itemCheck.rows[0];
 
-        // Prüfe Rune
         const runeCheck = await client.query(
           'SELECT * FROM rune_inventory WHERE id=$1 AND run_id=$2 AND side=$3',
           [runeInventoryId, runId, 'hero']
         );
         if (!runeCheck.rows.length) throw new Error('Rune nicht gefunden.');
 
-        // Prüfe verfügbare Slots
         const itemDef = ALL_ITEMS.get(inventoryItem.item_id);
         if (!itemDef) throw new Error('Item-Definition nicht gefunden.');
 
@@ -160,11 +147,9 @@ export function createInventoryRouter(db: Pool, authMiddleware: any): Router {
           throw new Error(`Item hat nur ${itemDef.runeSlots} Runen-Slots.`);
         }
 
-        // Rune sockeln
         const newRunes = [...currentRunes];
         newRunes[slotPosition] = runeCheck.rows[0].rune_id;
 
-        // Runenwort prüfen
         const { runeWord } = computeSocketedEffect(newRunes.filter(Boolean));
 
         await client.query(
@@ -182,9 +167,7 @@ export function createInventoryRouter(db: Pool, authMiddleware: any): Router {
         res.json({
           success: true,
           activeRuneWord: runeWord ? { id: runeWord.id, name: runeWord.name, description: runeWord.description } : null,
-          message: runeWord
-            ? `Runenwort aktiviert: ${runeWord.name}!`
-            : 'Rune gesockelt.',
+          message: runeWord ? `Runenwort aktiviert: ${runeWord.name}!` : 'Rune gesockelt.',
         });
       } catch (e: any) {
         await client.query('ROLLBACK');
@@ -217,7 +200,6 @@ export function createInventoryRouter(db: Pool, authMiddleware: any): Router {
 
         const { socketed_into, slot_position } = runeCheck.rows[0];
 
-        // Rune aus Item-Slot entfernen
         const itemCheck = await client.query('SELECT rune_slots FROM inventory WHERE id=$1', [socketed_into]);
         const slots: string[] = itemCheck.rows[0]?.rune_slots || [];
         slots[slot_position] = '';
@@ -247,10 +229,9 @@ export function createInventoryRouter(db: Pool, authMiddleware: any): Router {
   });
 
   // ── POST /runs/:id/curses/remove ────────────────────────────────
-  // Held zahlt Händler oder nutzt Reinigungstrank
   router.post('/:id/curses/remove', async (req: Request, res: Response) => {
     const { id: runId } = req.params;
-    const { curseId, method } = req.body; // method: 'cleanser_item' | 'merchant'
+    const { curseId, method } = req.body;
     const userId = (req as any).user.id;
 
     try {
@@ -292,7 +273,6 @@ export function createInventoryRouter(db: Pool, authMiddleware: any): Router {
   });
 
   // ── POST /runs/:id/leaders/recruit ──────────────────────────────
-  // Body: { leaderId: string }
   router.post('/:id/leaders/recruit', async (req: Request, res: Response) => {
     const { id: runId } = req.params;
     const { leaderId } = req.body;
@@ -306,7 +286,6 @@ export function createInventoryRouter(db: Pool, authMiddleware: any): Router {
       try {
         await client.query('BEGIN');
 
-        // Check max aktive Anführer
         const activeCount = await client.query(
           'SELECT COUNT(*) FROM active_leaders WHERE run_id=$1 AND side=$2 AND is_alive=TRUE',
           [runId, 'hero']
@@ -316,8 +295,7 @@ export function createInventoryRouter(db: Pool, authMiddleware: any): Router {
           return res.status(400).json({ error: 'Maximal 3 Anführer gleichzeitig.' });
         }
 
-        // Gold-Kosten abziehen (wenn vorhanden)
-        if (leader.recruitmentCost && leader.recruitmentCost > 0) {
+        if (leader.recruitmentCost > 0) {
           const goldCheck = await client.query('SELECT gold FROM hero_state WHERE run_id=$1', [runId]);
           if (goldCheck.rows[0].gold < leader.recruitmentCost) {
             await client.query('ROLLBACK');
@@ -326,7 +304,6 @@ export function createInventoryRouter(db: Pool, authMiddleware: any): Router {
           await client.query('UPDATE hero_state SET gold=gold-$1 WHERE run_id=$2', [leader.recruitmentCost, runId]);
         }
 
-        // Step abrufen
         const stepCheck = await client.query('SELECT step FROM hero_state WHERE run_id=$1', [runId]);
         const step = stepCheck.rows[0]?.step || 0;
 
@@ -373,8 +350,6 @@ export function createInventoryRouter(db: Pool, authMiddleware: any): Router {
   });
 
   // ── POST /runs/:id/loot/roll ─────────────────────────────────────
-  // Wird intern von execute aufgerufen, aber auch extern testbar
-  // Body: { nodeKey: string, risk: 'green'|'yellow'|'red', region: string }
   router.post('/:id/loot/roll', async (req: Request, res: Response) => {
     const { id: runId } = req.params;
     const { risk, region, seed } = req.body;
@@ -387,13 +362,8 @@ export function createInventoryRouter(db: Pool, authMiddleware: any): Router {
       );
       if (!runCheck.rows.length) return res.status(404).json({ error: 'Run nicht gefunden.' });
 
-      // Seeded RNG
-      const { mulberry32 } = await import('./prng');
       const rng = mulberry32(seed || Date.now());
-
-      // Item-Drop
       const item = rollLoot(risk, region, rng);
-      // Runen-Drop (nur in roten Räumen)
       const rune = risk === 'red' ? rollRuneDrop(rng, 'hero') : null;
 
       if (!item && !rune) {
@@ -446,7 +416,7 @@ export function createInventoryRouter(db: Pool, authMiddleware: any): Router {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// HELPER: In bestehende execute-Route integrieren
+// HELPER: Loot nach Raum anwenden (für execute-Route)
 // ═══════════════════════════════════════════════════════════════════
 export async function applyLootAfterRoom(
   db: Pool,
@@ -457,9 +427,6 @@ export async function applyLootAfterRoom(
   step: number,
   rng: () => number
 ): Promise<{ item: Item | null; runeId: string | null }> {
-  const { rollLoot } = await import('./items');
-  const { rollRuneDrop } = await import('./runes');
-
   const item = rollLoot(risk, region, rng);
   const rune = risk === 'red' ? rollRuneDrop(rng, 'hero') : null;
 
@@ -486,7 +453,6 @@ export async function applyVeilRuneSteal(
   veilStage: number,
   rng: () => number
 ): Promise<string | null> {
-  // Hero-Runen laden
   const heroRunes = await db.query(
     'SELECT id, rune_id FROM rune_inventory WHERE run_id=$1 AND side=$2',
     [runId, 'hero']
@@ -494,13 +460,11 @@ export async function applyVeilRuneSteal(
 
   if (!heroRunes.rows.length) return null;
 
-  const { veilRuneAction } = await import('./runes');
   const heroRuneIds = heroRunes.rows.map((r: any) => r.rune_id);
   const result = veilRuneAction(heroRuneIds, veilStage, rng);
 
   if (!result.success || !result.stolenRuneId) return null;
 
-  // Rune entfernen oder zur Schleier-Seite transferieren
   const targetRow = heroRunes.rows.find((r: any) => r.rune_id === result.stolenRuneId);
   if (targetRow) {
     if (result.message.includes('ZERSTÖRT')) {
