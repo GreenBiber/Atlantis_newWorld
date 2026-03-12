@@ -163,7 +163,7 @@ CREATE INDEX IF NOT EXISTS idx_inventory_run ON inventory(run_id);
 -- Runen-Inventar
 CREATE TABLE IF NOT EXISTS rune_inventory (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  run_id INTEGER NOT NULL REFERENCES runs(id) ON DELETE CASCAD,
+  run_id INTEGER NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
   rune_id TEXT NOT NULL,
   side TEXT NOT NULL CHECK (side IN ('hero','veil')),
   socketed_into UUID REFERENCES inventory(id) ON DELETE SET NULL,
