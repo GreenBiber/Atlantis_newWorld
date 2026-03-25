@@ -16,7 +16,7 @@ export default defineConfig({
     },
   },
   preview: {
-    allowedHosts: ['game.promptlyapp.cloud', 'localhost'],
+    allowedHosts: ['game.promptlyapp.cloud', 'localhost', 'sd_frontend'],
     host: '0.0.0.0',
     port: 5173
   }
