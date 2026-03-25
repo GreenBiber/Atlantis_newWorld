@@ -53,7 +53,7 @@ export function computeVeilRoute(
 
   for (let s = 0; s < 4; s++) {
     const node = nodes[current];
-    if (!node || !node.neighbors.length) break;
+    if (!node || !node.neighbors || !node.neighbors.length) break;
 
     // Kandidaten filtern
     let candidates = node.neighbors.filter(n => nodes[n]);
