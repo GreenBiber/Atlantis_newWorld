@@ -15,4 +15,9 @@ export default defineConfig({
       },
     },
   },
+  preview: {
+    allowedHosts: ['game.promptlyapp.cloud', 'localhost'],
+    host: '0.0.0.0',
+    port: 5173
+  }
 });
